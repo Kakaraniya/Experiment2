@@ -2,7 +2,14 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import (
+    RandomForestRegressor,
+    ExtraTreesRegressor,
+    GradientBoostingRegressor,
+    HistGradientBoostingRegressor,
+)
+from sklearn.linear_model import Ridge
+from sklearn.svm import SVR
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -67,26 +74,55 @@ def train_and_save():
     y = df["water_mm_per_week"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    pipeline = Pipeline([
-        ("scaler", StandardScaler()),
-        ("rf", RandomForestRegressor(n_estimators=200, random_state=42))
-    ])
-
-    print("Training model...")
-    pipeline.fit(X_train, y_train)
-
-    preds = pipeline.predict(X_test)
-    mae = mean_absolute_error(y_test, preds)
-    r2 = r2_score(y_test, preds)
-    print(f"Test MAE: {mae:.2f} mm/week")
-    print(f"Test R2: {r2:.3f}")
+    # define a set of candidate regressors to compare
+    models = {
+        "RandomForest": RandomForestRegressor(n_estimators=200, random_state=42),
+        "ExtraTrees": ExtraTreesRegressor(n_estimators=200, random_state=42),
+        "GradientBoosting": GradientBoostingRegressor(n_estimators=200, random_state=42),
+        "HistGradientBoosting": HistGradientBoostingRegressor(random_state=42),
+        "Ridge": Ridge(),
+        "SVR": SVR(),
+    }
 
     os.makedirs(MODEL_DIR, exist_ok=True)
-    joblib.dump(pipeline, MODEL_PATH)
-    print(f"Model saved to {MODEL_PATH}")
 
-    # show a sample prediction for sugarcane mid-season
+    results = []
+    trained_pipelines = {}
+
+    print("Training and evaluating models...")
+    for name, estimator in models.items():
+        pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", estimator),
+        ])
+        print(f"- Training {name}...")
+        pipeline.fit(X_train, y_train)
+
+        preds = pipeline.predict(X_test)
+        mae = mean_absolute_error(y_test, preds)
+        r2 = r2_score(y_test, preds)
+        results.append({"model": name, "mae": mae, "r2": r2})
+        trained_pipelines[name] = pipeline
+
+        # save individual model artifact
+        file_path = os.path.join(MODEL_DIR, f"model_{name}.joblib")
+        joblib.dump(pipeline, file_path)
+
+    res_df = pd.DataFrame(results).sort_values("mae")
+    print("\nModel comparison (sorted by MAE):")
+    print(res_df.to_string(index=False, formatters={"mae": "{:.3f}".format, "r2": "{:.3f}".format}))
+
+    # pick best by MAE
+    best_row = res_df.iloc[0]
+    best_name = best_row["model"]
+    best_pipeline = trained_pipelines[best_name]
+
+    # save best model to the canonical path
+    joblib.dump(best_pipeline, MODEL_PATH)
+    print(f"\nBest model: {best_name} (MAE={best_row['mae']:.3f}, R2={best_row['r2']:.3f})")
+    print(f"Best model saved to {MODEL_PATH}")
+
+    # sample prediction using best model
     sample = pd.DataFrame([{
         "temperature": 30.0,
         "humidity": 70.0,
@@ -95,8 +131,8 @@ def train_and_save():
         "solar_rad": 18.0,
         "crop_stage": 1
     }])
-    pred_sample = pipeline.predict(sample)[0]
-    print(f"Sample sugarcane water requirement (mm/week): {pred_sample:.2f}")
+    pred_sample = best_pipeline.predict(sample)[0]
+    print(f"Sample sugarcane water requirement (mm/week) by {best_name}: {pred_sample:.2f}")
 
 
 if __name__ == "__main__":
