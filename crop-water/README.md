@@ -30,3 +30,16 @@ Files
 
 Notes
 - The dataset is synthetic and intended for demo/POC only. For production use, replace `data` with real measured irrigation records for sugarcane and retrain.
+
+Docker
+- Build the image:
+
+```bash
+docker build -t crop-water .
+```
+
+- Run the container:
+
+```bash
+docker run --rm crop-water
+```
