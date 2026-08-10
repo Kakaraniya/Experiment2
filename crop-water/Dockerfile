@@ -12,4 +12,6 @@ COPY . .
 
 RUN python train.py
 
-CMD ["python", "predict.py", "--temp", "30", "--hum", "70", "--rain", "10", "--soil", "20", "--solar", "18", "--stage", "1"]
+EXPOSE 5000
+
+CMD ["python", "app.py"]
