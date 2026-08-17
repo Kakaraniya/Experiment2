@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import numpy as np
-
 from src.data import build_sample_dataset
 from src.model import load_model, predict, save_model, train_and_evaluate
 

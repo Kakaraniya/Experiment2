@@ -1,5 +1,4 @@
 from fastapi.testclient import TestClient
-
 from src import app as app_module
 from src.data import build_sample_dataset
 from src.model import train_and_evaluate
