@@ -1,6 +1,7 @@
 import argparse
-import joblib
 import os
+
+import joblib
 import pandas as pd
 
 MODEL_PATH = "crop-water/models/model.joblib"
@@ -8,7 +9,7 @@ MODEL_PATH = "crop-water/models/model.joblib"
 
 def load_model():
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"Model not found. Run training first: python3 crop-water/train.py")
+        raise FileNotFoundError("Model not found. Run training first: python3 crop-water/train.py")
     return joblib.load(MODEL_PATH)
 
 

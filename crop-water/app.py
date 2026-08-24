@@ -1,10 +1,9 @@
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 import joblib
 import pandas as pd
 from flask import Flask, jsonify, request
-
 
 MODEL_PATH = "crop-water/models/model.joblib"
 FEATURE_COLUMNS = [
@@ -43,13 +42,13 @@ def create_app() -> Flask:
             return jsonify({"predictions": values})
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
-        except Exception as exc:
+        except Exception as exc: # noqa: BLE001
             return jsonify({"error": f"Prediction failed: {exc}"}), 500
 
     return app
 
 
-def _normalize_payload(payload: Any) -> List[Dict[str, float]]:
+def _normalize_payload(payload: Any) -> list[dict[str, float]]:
     if isinstance(payload, dict) and "instances" in payload:
         instances = payload["instances"]
         if not isinstance(instances, list) or not instances:
@@ -62,15 +61,15 @@ def _normalize_payload(payload: Any) -> List[Dict[str, float]]:
     raise ValueError("JSON payload must be an object or contain an 'instances' list.")
 
 
-def _parse_row(item: Any) -> Dict[str, float]:
+def _parse_row(item: Any) -> dict[str, float]:
     if not isinstance(item, dict):
-        raise ValueError("Each instance must be a JSON object.")
+        raise TypeError("Each instance must be a JSON object.")
 
     missing = [col for col in FEATURE_COLUMNS if col not in item]
     if missing:
         raise ValueError(f"Missing required feature(s): {', '.join(missing)}")
 
-    row: Dict[str, float] = {}
+    row: dict[str, float] = {}
     for col in FEATURE_COLUMNS:
         try:
             row[col] = float(item[col])
