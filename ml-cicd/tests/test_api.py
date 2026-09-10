@@ -33,3 +33,18 @@ def test_health_and_prediction_endpoints(monkeypatch) -> None:
         payload = prediction_response.json()
         assert payload["model_version"] == "test-version"
         assert payload["predicted_temperature_c"] > 0
+        assert isinstance(payload["abnormal"], bool)
+        assert payload["abnormal_temperature_threshold_c"] == 60.0
+
+        dashboard_response = client.get("/dashboard")
+        assert dashboard_response.status_code == 200
+        assert "Thermal Watch" in dashboard_response.text
+
+        monkeypatch.setattr(
+            app_module,
+            "load_dataset",
+            lambda _path: build_sample_dataset(rows=24),
+        )
+        summary_response = client.get("/api/dashboard")
+        assert summary_response.status_code == 200
+        assert summary_response.json()["sample_count"] == 24

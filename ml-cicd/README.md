@@ -7,6 +7,7 @@ Battery thermal sensor ML project for Experiment 5.
 - Trains a regression model from battery sensor features: temperature, voltage, current, and coolant flow rate.
 - Saves a versioned model artifact under `models/`.
 - Serves predictions through a FastAPI API.
+- Classifies predictions as abnormal when the predicted temperature reaches the configured threshold.
 - Validates model performance before deployment.
 - Runs linting, tests, validation, Docker build, and image push in GitHub Actions.
 
@@ -43,6 +44,8 @@ pytest -q
 uvicorn src.app:app --reload
 ```
 
+Open `http://localhost:8000/dashboard` for the Thermal Watch dashboard. It shows live model status, recent forecast trends, abnormal readings, and an interactive prediction form.
+
 ## Docker
 
 ```bash
@@ -51,6 +54,29 @@ docker run -p 8000:8000 battery-thermal-ml
 ```
 
 The Docker image uses `requirements-docker.txt` so it only installs runtime dependencies.
+
+## Kubernetes deployment
+
+For Minikube, build directly into its image store so the cluster can use the local image:
+
+```bash
+minikube image build -t battery-thermal-ml:local .
+minikube addons enable metrics-server
+kubectl apply -f k8s/battery-thermal.yaml
+kubectl rollout status deployment/battery-thermal-ml
+minikube service battery-thermal-ml --url
+```
+
+Build the image after training so the versioned model artifact and `latest.json` are included. For a remote registry, replace `battery-thermal-ml:local` in `k8s/battery-thermal.yaml` with the pushed image reference and keep `imagePullPolicy: IfNotPresent`:
+
+```bash
+python -m src.train --data-path data/battery_thermal_sensor.csv --model-dir models --threshold 1.5
+docker build -t ghcr.io/YOUR_GITHUB_ORG/battery-thermal-ml:latest .
+docker push ghcr.io/YOUR_GITHUB_ORG/battery-thermal-ml:latest
+kubectl port-forward service/battery-thermal-ml 8000:80
+```
+
+The manifest starts two replicas and scales them from 2 to 10 based on CPU utilization. It uses `/health` for liveness and `/ready` to keep pods out of service until the model is loaded. The `/predict` response includes `abnormal`; set `ABNORMAL_TEMPERATURE_THRESHOLD_C` to change the threshold.
 
 ## Versioning and rollback
 
