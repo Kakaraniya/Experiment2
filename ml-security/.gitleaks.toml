@@ -1,0 +1,8 @@
+title = "Battery Thermal ML Gitleaks Configuration"
+
+[allowlist]
+description = "Generated security reports and trained model artifacts are not source secrets."
+paths = [
+  '''^reports/''',
+  '''^models/'''
+]

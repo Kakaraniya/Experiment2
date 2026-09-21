@@ -1,0 +1,50 @@
+name: MLSecOps Security Scan
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit bandit
+
+      - name: Dependency analysis - pip-audit
+        run: pip-audit -r requirements.txt
+
+      - name: Source-code scan - Bandit
+        run: bandit -r src -f txt
+
+      - name: Secret detection - Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: docker build -t battery-thermal-ml:security .
+
+      - name: Container scan - Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: battery-thermal-ml:security
+          format: table
+          severity: CRITICAL,HIGH,MEDIUM
+          ignore-unfixed: true
+          scanners: vuln,secret,misconfig
